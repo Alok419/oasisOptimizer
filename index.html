@@ -1469,24 +1469,37 @@
             const f2fOutput = document.getElementById("f2fOutput");
             const ptOtOutput = document.getElementById("ptOtOutput");
 
+            // Capture Patient Details
+            const fName = document.getElementById("firstName").value.trim() || "Unknown";
+            const lName = document.getElementById("lastName").value.trim() || "Patient";
+            const patientName = `${fName} ${lName}`;
+            
+            // Format Visit Date (YYYY-MM-DD)
+            let visitDate = document.getElementById("visitDate").value;
+            if (!visitDate) {
+                visitDate = new Date().toISOString().split('T')[0];
+            }
+
             try {
                 saveBtn.disabled = true;
 
                 // --- PART 1: SAVE JSON DATA, F2F, & PT/OT VIA APEX ---
                 saveBtn.innerText = "Saving Data...";
 
-                // We now pass rawJson, f2f, and ptOtJson
-                await sendToSalesforce(
+                // We now pass rawJson, f2f, ptOtJson, aiTime, patientName, visitDate
+                const chartId = await sendToSalesforce(
                     jsonOutput.value,
                     f2fOutput.value,
                     ptOtOutput.value,
-                    CACHED_AI_TIME
+                    CACHED_AI_TIME,
+                    patientName,
+                    visitDate
                 );
 
-                // --- PART 2: UPLOAD FILES VIA STANDARD API ---
-                if (selectedFiles.length > 0) {
+                // --- PART 2: UPLOAD FILES VIA STANDARD API LINKED TO NEW CHART ---
+                if (selectedFiles.length > 0 && chartId) {
                     saveBtn.innerText = `Uploading ${selectedFiles.length} Files...`;
-                    await saveFilesToSalesforceRecord();
+                    await saveFilesToSalesforceRecord(chartId);
                 }
 
                 showStatus("✅ Data & Files Saved Successfully!", false);
@@ -1510,7 +1523,7 @@
         }
 
         // 1. Send Data to Custom Apex REST API
-        async function sendToSalesforce(rawJson, f2fSummary, ptOtJson, aiTimeSeconds) {
+        async function sendToSalesforce(rawJson, f2fSummary, ptOtJson, aiTimeSeconds, patientName, visitDate) {
             const endpoint = `${SF_BASE_URL}/services/apexrest/non-oasis/ai-result`;
             const response = await fetch(endpoint, {
                 method: "POST",
@@ -1519,15 +1532,21 @@
                     // chartId removed
                     rawJson: rawJson,
                     f2fSummary: f2fSummary,
-                    ptOtJson: ptOtJson, // Added PT/OT to payload
-                    aiTimeSeconds: aiTimeSeconds
+                    ptOtJson: ptOtJson,
+                    aiTimeSeconds: aiTimeSeconds,
+                    patientName: patientName,
+                    visitDate: visitDate
                 })
             });
             if (!response.ok) throw new Error(await response.text());
+            
+            // Extract chartId from response
+            const responseData = await response.json();
+            return responseData.chartId; // Expected: { "status": "success", "chartId": "..." }
         }
 
         // 2. Upload Files directly to ContentVersion (Standard Salesforce API)
-        async function saveFilesToSalesforceRecord() {
+        async function saveFilesToSalesforceRecord(recordId) {
             const endpoint = `${SF_BASE_URL}/services/data/v57.0/sobjects/ContentVersion`;
 
             for (let i = 0; i < selectedFiles.length; i++) {
@@ -1542,7 +1561,7 @@
                         "Title": file.name,
                         "PathOnClient": file.name,
                         "VersionData": fileData.base64,
-                        // "FirstPublishLocationId": CHART_ID, // Removed
+                        "FirstPublishLocationId": recordId, 
                         "Origin": "H"
                     };
 
@@ -1563,7 +1582,7 @@
                         throw new Error(`Salesforce Error: ${errorCode} - ${errorMessage}`);
                     }
 
-                    console.log(`✅ Upload Success: ${file.name}`);
+                    console.log(`✅ Upload Success: ${file.name} linked to ${recordId}`);
 
                 } catch (err) {
                     console.error(err);
