@@ -659,7 +659,7 @@
 <body>
     <div class="container py-5">
         <div class="mb-4 text-center">
-            <h2 class="fs-1 fw-semibold text-dark">AI Non-OASIS Analyzer</h2>
+            <h2 id="mainHeader" class="fs-1 fw-semibold text-dark">AI Non-OASIS Analyzer</h2>
             <p class="fs-6 fw-normal text-dark">Upload OASIS document(s) to extract data</p>
         </div>
 
@@ -899,7 +899,7 @@
                                 style="width: 64px; height: 64px;">
                                 <i class="bi bi-check2-all fs-1"></i>
                             </div>
-                            <h1 class="fw-bold text-dark display-6 mb-2">AI Precoding and Initial Oasis Analysis</h1>
+                            <h1 class="fw-bold text-dark display-6 mb-2">Analysis Complete!</h1>
                             <p class="text-secondary fs-5 mb-4">Your OASIS documents have been successfully analyzed</p>
 
                             <div class="d-flex justify-content-center gap-3">
@@ -1376,6 +1376,7 @@
                 setTimeout(() => {
                     document.getElementById("progressWrapper").style.display = "none";
                     resultArea.style.display = "block";
+                    document.getElementById("mainHeader").innerText = "AI Precoding and Initial Oasis Analysis";
                 }, 800);
 
                 showStatus("✅ Analysis Complete.", false);
