@@ -1097,7 +1097,6 @@
            GLOBAL CONTEXT
            ========================================================= */
 
-        let CHART_ID = null;
         let GEMINI_API_KEY = null;
         let SF_SESSION_ID = null;
         let SF_BASE_URL = null;
@@ -1119,7 +1118,6 @@
             if (event.data && event.data.type === "SF_CONTEXT") {
                 console.log("✅ Received Context from Salesforce");
 
-                CHART_ID = event.data.recordId;
                 GEMINI_API_KEY = event.data.apiKey;
                 SF_SESSION_ID = event.data.sessionId;
                 SF_BASE_URL = event.data.baseUrl;
@@ -1281,7 +1279,7 @@
             showStatus("");
 
             // Validations
-            if (!CHART_ID || !GEMINI_API_KEY) {
+            if (!GEMINI_API_KEY) {
                 showStatus("❌ Configuration missing. Refresh Salesforce page.", true);
                 return;
             }
@@ -1486,7 +1484,8 @@
                 showStatus("✅ Data & Files Saved Successfully!", false);
                 saveBtn.innerText = "Saved";
                 setTimeout(() => {
-                    window.location.href = `${SF_BASE_URL}/lightning/r/Chart__c/${CHART_ID}/view`;
+                    // Redirect removed as CHART_ID is no longer used
+                    // window.location.reload(); // Optional: Reload or just stay
                 }, 800);
 
                 setTimeout(() => {
@@ -1509,7 +1508,7 @@
                 method: "POST",
                 headers: { "Authorization": "Bearer " + SF_SESSION_ID, "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    chartId: CHART_ID,
+                    // chartId removed
                     rawJson: rawJson,
                     f2fSummary: f2fSummary,
                     ptOtJson: ptOtJson, // Added PT/OT to payload
@@ -1535,7 +1534,7 @@
                         "Title": file.name,
                         "PathOnClient": file.name,
                         "VersionData": fileData.base64,
-                        "FirstPublishLocationId": CHART_ID,
+                        // "FirstPublishLocationId": CHART_ID, // Removed
                         "Origin": "H"
                     };
 
