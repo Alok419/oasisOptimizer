@@ -1379,7 +1379,10 @@
                     document.getElementById("mainHeader").innerText = "AI Precoding and Initial Oasis Analysis";
                 }, 800);
 
-                showStatus("✅ Analysis Complete.", false);
+                showStatus("✅ Analysis Complete. Saving to Salesforce...", false);
+                
+                // Auto-save
+                await finalizeSave();
 
             } catch (error) {
                 console.error(error);
