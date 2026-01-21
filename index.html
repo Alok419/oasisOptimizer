@@ -1641,6 +1641,10 @@ Summarize ONLY what is written. Never fabricate or assume.
                 return "No F2F document found.";
             }
             const data = await response.json();
+            if (!data.candidates || data.candidates.length === 0) {
+                console.warn("F2F Summary: No candidates returned.");
+                return "No F2F document found.";
+            }
             let text = data.candidates[0].content.parts[0].text;
             return text.replace(/\*/g, "").trim();
         }
@@ -1727,6 +1731,9 @@ Every output must directly come from the uploaded files.
 
             if (!response.ok) throw new Error("Vision Step Failed");
             const data = await response.json();
+            if (!data.candidates || data.candidates.length === 0) {
+                 throw new Error("Vision Step: No candidates returned.");
+            }
             return data.candidates[0].content.parts[0].text;
         }
 
@@ -1874,6 +1881,10 @@ Every output must directly come from the uploaded files.
                 return "{}";
             }
             const data = await response.json();
+            if (!data.candidates || data.candidates.length === 0) {
+                 console.warn("PT/OT Extraction: No candidates returned.");
+                 return "{}";
+            }
             return data.candidates[0].content.parts[0].text;
         }
 
@@ -2006,6 +2017,9 @@ INPUT DIAGNOSES TO AUDIT:
 
             if (!response.ok) throw new Error("Audit Step Failed");
             const data = await response.json();
+             if (!data.candidates || data.candidates.length === 0) {
+                 throw new Error("Audit Step: No candidates returned.");
+            }
             return data.candidates[0].content.parts[0].text;
         }
 
