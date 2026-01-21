@@ -1116,8 +1116,6 @@
 
         window.addEventListener("message", (event) => {
             if (event.data && event.data.type === "SF_CONTEXT") {
-                console.log("✅ Received Context from Salesforce");
-
                 console.log("✅ Received Context from Salesforce", event.data);
                 console.log("Record ID (Ignored):", event.data.recordId);
                 console.log("API Key:", event.data.apiKey ? "Present" : "Missing");
@@ -1977,7 +1975,7 @@ INPUT DIAGNOSES TO AUDIT:
                 body: JSON.stringify({
                     system_instruction: { parts: [{ text: auditorSystemPrompt }] },
                     contents: [{ parts: [{ text: userPrompt }] }],
-                   
+                    tools: toolsConfig
                 })
             });
 
@@ -2011,9 +2009,3 @@ INPUT DIAGNOSES TO AUDIT:
 </body>
 
 </html>
-
-
-
-
-
-
