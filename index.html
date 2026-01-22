@@ -903,10 +903,9 @@
                             <p class="text-secondary fs-5 mb-4">Your OASIS documents have been successfully analyzed</p>
 
                             <div class="d-flex justify-content-center gap-3">
-                                <button class="btn btn-primary btn-report-action px-4" onclick="openReport()">
-                                    <i class="bi bi-file-earmark-text"></i> View Report
+                                <button class="btn btn-primary btn-report-action px-4">
+                                    <i class="bi bi-file-earmark-text"></i> View Full Report
                                 </button>
-                                
                                 <button class="btn btn-outline-dark btn-report-action px-4" onclick="toggleEditMode()">
                                     <i class="bi bi-pencil-square"></i> Edit Analysis
                                 </button>
@@ -1621,9 +1620,11 @@
             }
             console.log("📄 Opening Report for Chart ID:", SAVED_CHART_ID);
             
-            // Construct and open the Salesforce URL
-            const reportUrl = `${SF_BASE_URL}/lightning/r/Chart__c/${SAVED_CHART_ID}/view`;
-            window.open(reportUrl, '_blank');
+            // Post message to Salesforce Parent
+            window.parent.postMessage({
+                type: 'OPEN_CHART_DETAILS',
+                chartId: SAVED_CHART_ID
+            }, '*');
         }
 
         /* =========================================================
