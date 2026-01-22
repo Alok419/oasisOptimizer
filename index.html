@@ -2037,9 +2037,24 @@ INPUT DIAGNOSES TO AUDIT:
                 })
             });
 
-            if (!response.ok) throw new Error("Audit Step Failed");
+            if (!response.ok) throw new Error("Audit Step Failed: " + response.statusText);
             const data = await response.json();
-            return data.candidates[0].content.parts[0].text;
+            console.log("🔍 API Response:", data);
+
+            if (!data.candidates || data.candidates.length === 0) {
+                if (data.promptFeedback) {
+                    console.error("Safety Block:", data.promptFeedback);
+                    throw new Error("AI refused response due to safety filters.");
+                }
+                throw new Error("No candidates returned from AI.");
+            }
+
+            const content = data.candidates[0].content;
+            if (!content || !content.parts || !content.parts[0]) {
+                 throw new Error("Invalid response structure from AI.");
+            }
+
+            return content.parts[0].text;
         }
 
         /* =========================================================
