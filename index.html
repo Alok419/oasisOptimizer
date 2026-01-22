@@ -1077,6 +1077,11 @@
                                 onclick="finalizeSave()">
                                 <i class="bi bi-cloud-arrow-up me-2"></i> Save Data to Salesforce
                             </button>
+                             <!-- View Report Button (Initially Hidden) -->
+                            <button id="viewReportBtn" class="btn btn-primary btn-lg w-100 py-3 rounded-3 shadow-sm fw-bold mt-3"
+                                style="display:none;" onclick="openReport()">
+                                <i class="bi bi-file-earmark-medical me-2"></i> View Report
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1102,6 +1107,7 @@
         let SF_BASE_URL = null;
         let VECTOR_STORE_ID = null;
         let CACHED_AI_TIME = 0;
+        let SAVED_CHART_ID = null;
 
         // Array to store actual File objects
         let selectedFiles = [];
@@ -1500,6 +1506,8 @@
                     visitDate
                 );
 
+                SAVED_CHART_ID = chartId; // Store for View Report
+
                 // --- PART 2: UPLOAD FILES VIA STANDARD API LINKED TO NEW CHART ---
                 if (selectedFiles.length > 0 && chartId) {
                     saveBtn.innerText = `Uploading ${selectedFiles.length} Files...`;
@@ -1508,6 +1516,12 @@
 
                 showStatus("✅ Data & Files Saved Successfully!", false);
                 saveBtn.innerText = "Saved";
+                
+                // Show View Report Button
+                if (SAVED_CHART_ID) {
+                    document.getElementById("viewReportBtn").style.display = "block";
+                }
+
                 setTimeout(() => {
                     // Redirect removed as CHART_ID is no longer used
                     // window.location.reload(); // Optional: Reload or just stay
@@ -1593,6 +1607,24 @@
                     showStatus(`❌ Failed to upload ${file.name}: ${err.message}`, true);
                 }
             }
+        }
+
+        /* =========================================================
+           VIEW REPORT LOGIC
+           ========================================================= */
+        
+        function openReport() {
+            if (!SAVED_CHART_ID) {
+                alert("No report ID found. Please save first.");
+                return;
+            }
+            console.log("📄 Opening Report for Chart ID:", SAVED_CHART_ID);
+            
+            // Post message to Salesforce Parent
+            window.parent.postMessage({
+                type: 'OPEN_CHART_DETAILS',
+                chartId: SAVED_CHART_ID
+            }, '*');
         }
 
         /* =========================================================
