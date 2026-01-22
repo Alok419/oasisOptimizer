@@ -1620,11 +1620,11 @@
             }
             console.log("📄 Opening Report for Chart ID:", SAVED_CHART_ID);
             
-            // Post message to Salesforce Parent
-            window.parent.postMessage({
-                type: 'OPEN_CHART_DETAILS',
-                chartId: SAVED_CHART_ID
-            }, '*');
+            // Construct URL using SF_BASE_URL and SAVED_CHART_ID
+            const url = `${SF_BASE_URL}/lightning/r/Chart__c/${SAVED_CHART_ID}/view`;
+            
+            // Open the URL
+            window.open(url, "_blank");
         }
 
         /* =========================================================
@@ -2081,4 +2081,4 @@ INPUT DIAGNOSES TO AUDIT:
     </script>
 </body>
 
-</html>
+</html> 
