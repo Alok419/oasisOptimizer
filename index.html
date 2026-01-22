@@ -1381,6 +1381,10 @@
 
                 showStatus("✅ Analysis Complete.", false);
 
+                // AUTOMATICALLY SAVE TO SALESFORCE
+                console.log("🔄 Auto-triggering Salesforce Save...");
+                await finalizeSave();
+
             } catch (error) {
                 console.error(error);
                 // On error, we don't want to leave it hanging
