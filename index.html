@@ -653,6 +653,85 @@
         .upload-disabled * {
             cursor: wait !important;
         }
+        /* --- OPTION CARDS --- */
+        .option-card-label {
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .option-card {
+            border: 2px solid #22c55e;
+            border-radius: 24px;
+            padding: 24px;
+            background: #fff;
+            transition: all 0.2s ease;
+            height: 100%;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .option-card:hover {
+            background-color: #f0fdf4;
+        }
+
+        .option-input:checked+.option-card {
+            background-color: #ffffff;
+            /* White background as per image, just border exists */
+            /* Maybe slight highlight? Image looks white */
+        }
+
+        .option-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 12px;
+            width: 100%;
+        }
+
+        .custom-radio {
+            width: 18px;
+            height: 18px;
+            min-width: 18px;
+            border: 2px solid #0f172a;
+            /* Dark border */
+            border-radius: 2px;
+            /* Square */
+            background: transparent;
+            margin-top: 4px;
+            /* Align with text */
+            position: relative;
+            transition: all 0.2s;
+        }
+
+        .option-input:checked+.option-card .custom-radio {
+            background-color: #0f172a;
+            /* Fill when checked */
+            border-color: #0f172a;
+        }
+
+        .option-title {
+            font-weight: 500;
+            font-size: 1.05rem;
+            color: #1e293b;
+            line-height: 1.4;
+        }
+
+        .option-desc {
+            font-size: 0.95rem;
+            color: #1e293b;
+            line-height: 1.6;
+            padding-left: 0;
+        }
+
+        .link-text {
+            text-decoration: underline;
+            text-decoration-style: dotted;
+            text-underline-offset: 4px;
+            color: inherit;
+        }
+
     </style>
 </head>
 
@@ -715,17 +794,47 @@
                                 </div>
                                 <div>
                                     <div class="mb-3">
-                                        <p class="alert alert-info py-2" style="font-size: 0.9rem; border-left: 4px solid #0dcaf0;">
-                                            Note: You can either do only Precoding or Oasis Optimization(It means Precoding + Oasis ).
-                                        </p>
-                                        <div class="d-flex gap-4 mt-2">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="radio" name="analysisType" id="precodingRadio" value="precoding">
-                                                <label class="form-check-label fw-medium" for="precodingRadio">Precoding</label>
+                                       
+                                        <!-- Option Cards Row -->
+                                        <div class="row g-4 mt-1 mb-3">
+                                            <!-- Precoding Card -->
+                                            <div class="col-md-6">
+                                                <label class="option-card-label">
+                                                    <input type="radio" name="analysisType" class="option-input d-none"
+                                                        value="precoding" id="precodingRadio">
+                                                    <div class="option-card">
+                                                        <div class="option-header">
+                                                            <div class="custom-radio"></div>
+                                                            <div class="option-title">Precoding Analysis –</div>
+                                                        </div>
+                                                        <div class="option-desc">
+                                                            Please attach H&P, F2F, and all referral documents, orders
+                                                            <span class="link-text">in order to</span> obtain a Summary
+                                                            of Care and Initial DX sequence.
+                                                        </div>
+                                                    </div>
+                                                </label>
                                             </div>
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="radio" name="analysisType" id="optimizationRadio" value="optimization">
-                                                <label class="form-check-label fw-medium" for="optimizationRadio">Oasis Optimization</label>
+
+                                            <!-- Oasis Optimization Card -->
+                                            <div class="col-md-6">
+                                                <label class="option-card-label">
+                                                    <input type="radio" name="analysisType" class="option-input d-none"
+                                                        value="optimization" id="optimizationRadio">
+                                                    <div class="option-card">
+                                                        <div class="option-header">
+                                                            <div class="custom-radio"></div>
+                                                            <div class="option-title">Oasis Optimization–</div>
+                                                        </div>
+                                                        <div class="option-desc">
+                                                            Please attach H&P, F2F, and all referral documents,
+                                                            completed Oasis Assessment and any PT/OT Assessment <span
+                                                                class="link-text">in order to</span> get the Oasis
+                                                            Optimization results and <span class="link-text">completed
+                                                                DX Sequence</span>.
+                                                        </div>
+                                                    </div>
+                                                </label>
                                             </div>
                                         </div>
                                     </div>
@@ -2350,6 +2459,3 @@ INPUT DIAGNOSES TO AUDIT:
 </body>
 
 </html>
-
-
-
