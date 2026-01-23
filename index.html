@@ -714,15 +714,27 @@
                                     <i class="bi bi-file-earmark-text fs-4"></i>
                                 </div>
                                 <div>
-                                    <h5 class="mb-1 fw-bold text-dark">Upload OASIS Documents</h5>
-                                    <div class="text-secondary small">Select or drag & drop patient assessment files
+                                    <div class="mb-3">
+                                        <p class="alert alert-info py-2" style="font-size: 0.9rem; border-left: 4px solid #0dcaf0;">
+                                            Note: You can either do only Precoding or Oasis Optimization.
+                                        </p>
+                                        <div class="d-flex gap-4 mt-2">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="analysisType" id="precodingRadio" value="precoding">
+                                                <label class="form-check-label fw-medium" for="precodingRadio">Precoding</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="analysisType" id="optimizationRadio" value="optimization">
+                                                <label class="form-check-label fw-medium" for="optimizationRadio">Oasis Optimization</label>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
                             <div class="rounded-4 border-2 border-dashed p-5 text-center position-relative mb-3"
                                 style="border: 2px dashed #cbd5e1; background: #fdfdfd; cursor: pointer; transition: all 0.2s;"
-                                onclick="document.getElementById('fileInput').click()"
+                                onclick="validateAndClick()"
                                 onmouseover="this.style.borderColor='#3b82f6'; this.style.background='#f8fafc';"
                                 onmouseout="this.style.borderColor='#cbd5e1'; this.style.background='#fdfdfd';">
 
@@ -1145,7 +1157,23 @@
            FILE UI LOGIC
            ========================================================= */
 
+        function validateAndClick() {
+            const analysisType = document.querySelector('input[name="analysisType"]:checked');
+            if (!analysisType) {
+                alert('Please select any one of them to proceed');
+                return;
+            }
+            document.getElementById('fileInput').click();
+        }
+
         function handleFileSelect(inputElement) {
+            const analysisType = document.querySelector('input[name="analysisType"]:checked');
+            if (!analysisType) {
+                alert('Please select any one of them to proceed');
+                inputElement.value = "";
+                return;
+            }
+
             if (inputElement.files && inputElement.files.length > 0) {
                 for (let i = 0; i < inputElement.files.length; i++) {
                     selectedFiles.push(inputElement.files[i]);
@@ -2080,5 +2108,3 @@ INPUT DIAGNOSES TO AUDIT:
 </body>
 
 </html>
-
-
