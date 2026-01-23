@@ -771,18 +771,18 @@
                             <div class="row g-4">
                                 <div class="col-md-4">
                                     <label class="custom-label">Last Name</label>
-                                    <input type="text" class="form-control custom-input" placeholder="Enter last name" required
+                                    <input type="text" class="form-control custom-input" placeholder="Enter last name"
                                         id="lastName">
                                 </div>
                                 <div class="col-md-4">
                                     <label class="custom-label">First Name</label>
-                                    <input type="text" class="form-control custom-input" placeholder="Enter first name" required
+                                    <input type="text" class="form-control custom-input" placeholder="Enter first name"
                                         id="firstName">
                                 </div>
                                 <div class="col-md-4">
                                     <label class="custom-label">Visit Date</label>
                                     <div class="input-icon-wrapper">
-                                        <input type="date" class="form-control custom-input w-100" id="visitDate" required>
+                                        <input type="date" class="form-control custom-input w-100" id="visitDate">
                                     </div>
                                 </div>
                             </div>
@@ -1443,6 +1443,16 @@
 
             if (selectedFiles.length === 0) {
                 showStatus("❌ Please upload at least one file.", true);
+                return;
+            }
+
+            // New Validation for Patient Info
+            const fNameInput = document.getElementById("firstName").value.trim();
+            const lNameInput = document.getElementById("lastName").value.trim();
+            const vDateInput = document.getElementById("visitDate").value;
+
+            if (!fNameInput || !lNameInput || !vDateInput) {
+                showStatus("❌ Please fill in all Patient Information fields (Name & Date) to proceed.", true);
                 return;
             }
             try {
@@ -2462,6 +2472,5 @@ INPUT DIAGNOSES TO AUDIT:
 </body>
 
 </html>
-
 
 
