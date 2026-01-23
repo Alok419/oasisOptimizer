@@ -659,7 +659,7 @@
 <body>
     <div class="container py-5">
         <div class="mb-4 text-center">
-            <h2 id="mainHeader" class="fs-1 fw-semibold text-dark">AI Precoding and Initial Oasis Analysis s</h2>
+            <h2 id="mainHeader" class="fs-1 fw-semibold text-dark">AI Precoding and Initial Oasis Analysis</h2>
             <p class="fs-6 fw-normal text-dark">Upload OASIS document(s) to extract data</p>
         </div>
 
@@ -1356,20 +1356,34 @@
                 // Stepper 2 threshold is ~15-30%
                 updateProgress(16, "Step 2: Extracting Clinical Data...");
                 
-                const analysisType = document.querySelector('input[name="analysisType"]:checked').value;
+                const analysisTypeInput = document.querySelector('input[name="analysisType"]:checked');
+                const analysisType = analysisTypeInput ? analysisTypeInput : null;
                 
                 // Prepare Promises
                 const f2fPromise = callGeminiF2FSummary(fileDataArray);
                 const ptOtPromise = runPtOtExtraction(fileDataArray);
                 let oasisPromise = Promise.resolve("{}");
 
-                if (analysisType === "optimization") {
-                    updateProgress(20, "Running Oasis Optimization & Clinical Extraction...");
-                    oasisPromise = runOasisExtraction(fileDataArray);
+                if (analysisType) {
+                     if (analysisType.value === "optimization") {
+                        updateProgress(20, "Running Oasis Optimization & Clinical Extraction...");
+                        console.log("🚀 Starting Oasis Extraction...");
+                        oasisPromise = runOasisExtraction(fileDataArray)
+                            .then(res => { console.log("✅ Oasis Extraction Done"); return res; })
+                            .catch(err => { console.error("❌ Oasis Extraction Failed:", err); return "{}"; });
+                    } else {
+                        console.log("ℹ️ Precoding Mode: Skipping Oasis Extraction.");
+                    }
                 }
-
+                
                 // Execute Parallel
-                const [f2fSummaryText, ptOtResult, oasisResult] = await Promise.all([f2fPromise, ptOtPromise, oasisPromise]);
+                console.log("⏳ Waiting for all promises...");
+                const [f2fSummaryText, ptOtResult, oasisResult] = await Promise.all([
+                    f2fPromise.catch(e => { console.error("F2F Failed", e); return "No F2F found."; }), 
+                    ptOtPromise.catch(e => { console.error("PT/OT Failed", e); return "{}"; }), 
+                    oasisPromise
+                ]);
+                console.log("✅ All promises resolved.");
 
                 updateProgress(31, "Step 3: Clinical Data Extraction Complete.");
 
@@ -1996,18 +2010,25 @@ Every output must directly come from the uploaded files.
                 });
             });
 
-            const response = await fetch(`${GEMINI_VISION_ENDPOINT}?key=${GEMINI_API_KEY}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ contents: [{ parts: parts }] })
-            });
+            try {
+                const response = await fetch(`${GEMINI_VISION_ENDPOINT}?key=${GEMINI_API_KEY}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ contents: [{ parts: parts }] })
+                });
 
-            if (!response.ok) {
-                 console.warn("Oasis Extraction failed");
-                 return "{}";
+                if (!response.ok) {
+                    const errText = await response.text();
+                    console.error("❌ Oasis Extraction API Error:", response.status, errText);
+                    return "{}";
+                }
+                const data = await response.json();
+                console.log("✅ Oasis Extraction Data Received");
+                return data.candidates[0].content.parts[0].text;
+            } catch (error) {
+                console.error("❌ Oasis Extraction Exception:", error);
+                return "{}";
             }
-            const data = await response.json();
-            return data.candidates[0].content.parts[0].text;
         }
 
         // --- 3. PT/OT Extraction (New Integrated Function) ---
@@ -2329,4 +2350,3 @@ INPUT DIAGNOSES TO AUDIT:
 </body>
 
 </html>
-
