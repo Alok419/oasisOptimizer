@@ -659,7 +659,7 @@
 <body>
     <div class="container py-5">
         <div class="mb-4 text-center">
-            <h2 id="mainHeader" class="fs-1 fw-semibold text-dark">AI Precoding and Initial Oasis Analysis s</h2>
+            <h2 id="mainHeader" class="fs-1 fw-semibold text-dark">AI Precoding and Initial Oasis Analysis</h2>
             <p class="fs-6 fw-normal text-dark">Upload OASIS document(s) to extract data</p>
         </div>
 
@@ -716,7 +716,7 @@
                                 <div>
                                     <div class="mb-3">
                                         <p class="alert alert-info py-2" style="font-size: 0.9rem; border-left: 4px solid #0dcaf0;">
-                                            Note: You can either do only Precoding or Oasis Optimization.
+                                            Note: You can either do only Precoding or Oasis Optimization(It means Precoding + Oasis ).
                                         </p>
                                         <div class="d-flex gap-4 mt-2">
                                             <div class="form-check">
@@ -1084,6 +1084,8 @@
                                 <label class="custom-label">Final Audited Result (ICD-10 Compliant):</label>
                                 <textarea id="jsonOutput" class="result-box w-100 mb-3" readonly
                                     style="height: 250px;"></textarea>
+                                
+                                <textarea id="oasisOutput" style="display:none;"></textarea>
                             </div>
                             <button id="saveBtn" class="btn btn-success btn-lg w-100 py-3 rounded-3 shadow-sm fw-bold"
                                 onclick="finalizeSave()">
@@ -1311,12 +1313,14 @@
             const jsonOutput = document.getElementById("jsonOutput");
             const f2fOutput = document.getElementById("f2fOutput");
             const ptOtOutput = document.getElementById("ptOtOutput");
+            const oasisOutput = document.getElementById("oasisOutput");
 
             // UI Reset
             resultArea.style.display = "none";
             jsonOutput.value = "";
             f2fOutput.value = "";
             ptOtOutput.value = "";
+            oasisOutput.value = "";
             showStatus("");
 
             // Validations
@@ -1348,16 +1352,25 @@
                     selectedFiles.map(file => readFileAsBase64(file))
                 );
 
-                // --- STEP 2: CLINICAL DATA EXTRACTION (F2F & PT/OT) ---
+                // --- STEP 2: CLINICAL DATA EXTRACTION (F2F & PT/OT & OPTIONAL OASIS) ---
                 // Stepper 2 threshold is ~15-30%
-                updateProgress(16, "Step 2: Extracting Clinical Data (F2F & PT/OT)...");
+                updateProgress(16, "Step 2: Extracting Clinical Data...");
                 
-                // Run F2F
-                const f2fSummaryText = await callGeminiF2FSummary(fileDataArray);
-                updateProgress(25, "F2F Summary Extracted. Processing PT/OT...");
+                const analysisType = document.querySelector('input[name="analysisType"]:checked').value;
                 
-                // Run PT/OT
-                const ptOtResult = await runPtOtExtraction(fileDataArray);
+                // Prepare Promises
+                const f2fPromise = callGeminiF2FSummary(fileDataArray);
+                const ptOtPromise = runPtOtExtraction(fileDataArray);
+                let oasisPromise = Promise.resolve("{}");
+
+                if (analysisType === "optimization") {
+                    updateProgress(20, "Running Oasis Optimization & Clinical Extraction...");
+                    oasisPromise = runOasisExtraction(fileDataArray);
+                }
+
+                // Execute Parallel
+                const [f2fSummaryText, ptOtResult, oasisResult] = await Promise.all([f2fPromise, ptOtPromise, oasisPromise]);
+
                 updateProgress(31, "Step 3: Clinical Data Extraction Complete.");
 
                 // --- STEP 3: DIAGNOSIS DETECTION ---
@@ -1400,6 +1413,7 @@
                 jsonOutput.value = prettyJson;
                 f2fOutput.value = f2fSummaryText;
                 ptOtOutput.value = prettyPtOt;
+                oasisOutput.value = oasisResult;
 
                 // Populate Report UI
                 populateReportUI(f2fSummaryText, prettyPtOt, prettyJson);
@@ -1506,6 +1520,7 @@
             const jsonOutput = document.getElementById("jsonOutput");
             const f2fOutput = document.getElementById("f2fOutput");
             const ptOtOutput = document.getElementById("ptOtOutput");
+            const oasisOutput = document.getElementById("oasisOutput");
 
             // Capture Patient Details
             const fName = document.getElementById("firstName").value.trim() || "Unknown";
@@ -1524,14 +1539,15 @@
                 // --- PART 1: SAVE JSON DATA, F2F, & PT/OT VIA APEX ---
                 saveBtn.innerText = "Saving Data...";
 
-                // We now pass rawJson, f2f, ptOtJson, aiTime, patientName, visitDate
+                // We now pass rawJson, f2f, ptOtJson, aiTime, patientName, visitDate, oasisResult
                 const chartId = await sendToSalesforce(
                     jsonOutput.value,
                     f2fOutput.value,
                     ptOtOutput.value,
                     CACHED_AI_TIME,
                     patientName,
-                    visitDate
+                    visitDate,
+                    oasisOutput.value
                 );
 
                 SAVED_CHART_ID = chartId; // Store for View Report
@@ -1569,7 +1585,7 @@
         }
 
         // 1. Send Data to Custom Apex REST API
-        async function sendToSalesforce(rawJson, f2fSummary, ptOtJson, aiTimeSeconds, patientName, visitDate) {
+        async function sendToSalesforce(rawJson, f2fSummary, ptOtJson, aiTimeSeconds, patientName, visitDate, oasisJson) {
             const endpoint = `${SF_BASE_URL}/services/apexrest/non-oasis/ai-result`;
             const response = await fetch(endpoint, {
                 method: "POST",
@@ -1581,7 +1597,8 @@
                     ptOtJson: ptOtJson,
                     aiTimeSeconds: aiTimeSeconds,
                     patientName: patientName,
-                    visitDate: visitDate
+                    visitDate: visitDate,
+                    oasisJson: oasisJson
                 })
             });
             if (!response.ok) throw new Error(await response.text());
@@ -1785,6 +1802,210 @@ Every output must directly come from the uploaded files.
             });
 
             if (!response.ok) throw new Error("Vision Step Failed");
+            const data = await response.json();
+            return data.candidates[0].content.parts[0].text;
+        }
+
+        // --- 2.1 Oasis Extraction (New) ---
+        async function runOasisExtraction(fileDataArray) {
+            const prompt = `
+            You are a specialized Clinical Document Extractor. Your job is to extract data from an OASIS-E1 Home Health Assessment PDF.
+
+    VISUAL INSTRUCTIONS
+    This is a visual extraction task. Do not rely solely on text stream order. Look at the layout.
+    Identify selected values by looking for: ☑ (checked box), [X] (marked box), ■ (filled box), or circled numbers.
+    Ignore unchecked boxes (☐, [ ]).
+
+    DATA FORMATTING RULES (CRITICAL)
+    NO LEADING ZEROS: If a value is "01", return "1". If "02", return "2". (Exception: Return "0" if the value is exactly zero). EXCEPTION FOR GG CODES: For GG items (e.g., GG0130, GG0170), KEEP the leading zero (e.g., return "06", "05", "01").
+    ONLY CODES: For M-Items and GG-Items, return ONLY the numeric code (e.g., "1", "06"), do NOT return the text description.
+    MULTI-SELECT: If multiple boxes are checked, separate with commas (e.g., "1, 2").
+    DATES: Extract dates strictly in YYYY-MM-DD format. If a date is missing, return "N/A".
+
+    SECTION SPECIFIC RULES
+    M-Items & B/D-Items:
+    Find the question ID (e.g., M1830, B1000).
+    Find the option that is VISUALLY marked.
+    Extract the numeric code associated with that option.
+
+    ITEMS TO EXTRACT
+    If an item is not found or not visually marked, return "N/A".
+
+    --- CHART DATA ---
+    M0030 (Start of Care Date) -> Return YYYY-MM-DD
+    M0032 (Resumption of Care Date) -> Return YYYY-MM-DD
+    M0060 (Zip Code) -> Return ONLY the first 5 characters. Ignore any suffix.
+    M0110 (Episode Timing) -> Return code "1" (Early) or "2" (Later)
+    M1005 (Inpatient Discharge Date) -> Return YYYY-MM-DD
+    M0069 (Gender) -> Return code "1" (Male) or "2" (Female).
+    M0080 (Discipline) -> Return code "1" (RN), "2" (PT), "3" (SLP/ST), "4" (OT).
+
+    --- PLAN OF CARE / ORDERS ---
+    Activities Permitted:
+    Look for the header "Activities Permitted".
+    Return a comma-separated list of EVERY checkbox that is visually marked.
+    DME:
+    Look for the header "DME".
+    Return a comma-separated list of EVERY checkbox that is visually marked.
+
+    --- OASIS ITEMS ---
+    M0090 (Date Assessment Completed) -> Return YYYY-MM-DD
+    M1000 (Inpatient Discharge History - list all checked numbers 1-7)
+    M1033 (Risk for Hospitalization – list all checked numbers)
+    B1000 (Vision)
+    M1400 (Dyspnea)
+    M1700 (Cognitive Functioning)
+    M1710 (When Confused)
+    M1720 (When Anxious)
+    M1740 (Cognitive/Behavioral Symptoms – list all checked numbers)
+    M1745 (Disruptive Behavior)
+    M1800 (Grooming)
+    M1810 (Upper Body Dressing)
+    M1820 (Lower Body Dressing)
+    M1830 (Bathing)
+    M1840 (Toilet Transfer)
+    M1845 (Toileting Hygiene)
+    M1850 (Transferring)
+    M1860 (Ambulation)
+    M1870 (Feeding)
+    M2020 (Oral Medications)
+    J0530 (Pain Interference with Activities)
+
+    --- GG ITEMS (SELF-CARE & MOBILITY) ---
+    Extract the "SOC/ROC Performance" code (e.g., 06, 05, 04, 03, 02, 01, 07, 09, 10, 88) for the following items:
+    GG0130 B (Oral Hygiene)
+    GG0130 C (Toileting Hygiene)
+    GG0130 E (Shower/Bathe Self)
+    GG0130 F (Upper Body Dressing)
+    GG0130 G (Lower Body Dressing)
+    GG0130 H (Footwear)
+    GG0170 A (Roll left/right)
+    GG0170 B (Sit to lying)
+    GG0170 C (Lying to sitting)
+    GG0170 D (Sit to stand)
+    GG0170 E (Chair/bed transfer)
+    GG0170 F (Toilet transfer)
+    GG0170 I (Walk 10 feet)
+    GG0170 J (Walk 50 feet w/ turns)
+    GG0170 K (Walk 150 feet)
+    GG0170 L (Walk 10 feet uneven)
+    GG0170 M (1 step/curb)
+    GG0170 N (4 steps)
+    GG0170 O (12 steps)
+    GG0170 R (Wheel 50 feet)
+    GG0170 S (Wheel 150 feet)
+
+    --- D0150 PATIENT MOOD INTERVIEW ---
+    This section has two columns. Extract the numeric code for checks in Row A and Row B.
+    Row A (Little interest): Col 1 (Symptom), Col 2 (Frequency)
+    Row B (Feeling down): Col 1 (Symptom), Col 2 (Frequency)
+
+    SALESFORCE OUTPUT REQUIREMENT (MANDATORY)
+    You must identify values using the OASIS codes above, but the FINAL OUTPUT must use the specific JSON keys below.
+
+    Use this mapping EXACTLY:
+    SOC_Date -> M0030 (YYYY-MM-DD)
+    ROC_Date -> M0032 (YYYY-MM-DD)
+    Zip_Code -> M0060 (First 5 digits only)
+    Episode_Timing -> M0110 (1 or 2)
+    M0069 -> M0069 (1 or 2)
+    M0080 -> M0080 (1, 2, 3, or 4)
+    Inpatient_Discharge_Date -> M1005 (YYYY-MM-DD)
+    M0090_Date_Assessment_Completed -> M0090 (YYYY-MM-DD)
+    M1000_Discharge_History -> M1000 (Comma separated list of codes)
+    Activities Permitted -> Activities_Permitted__c
+    DME -> DME_Supplies__c
+    B1000 -> M1200_Vision__c
+    D0150 Row A Col 1 -> Little_interest_symptom_presence__c
+    D0150 Row A Col 2 -> Little_interest_symptom_frequency__c
+    D0150 Row B Col 1 -> Feeling_down_symptom_presence__c
+    D0150 Row B Col 2 -> Feeling_down_symptom_frequency__c
+    M1033 -> Functional_Points_M1033__c
+    M1400 -> M1400_SOB_Actual__c
+    M1700 -> M1700_Cognitive_Functioning__c
+    M1710 -> M1710_When_Confused__c
+    M1720 -> M1720_When_Anxious__c
+    M1740 -> M1740_Cognitive_behavioral_and__c
+    M1745 -> M1745_Frequncy_of_Disruptive_Behavior__c
+    M1800 -> M1800_Grooming_Actual__c
+    M1810 -> M1810_Ability_to_Dress_Upper_Body_Actual__c
+    M1820 -> M1820_Ability_to_Dress_Lower_Body_Actual__c
+    M1830 -> M1830_Bathing_Actual__c
+    M1840 -> M1840_Toilet_Transferring_Actual__c
+    M1845 -> M1845_Toilet_Hyg_Actual__c
+    M1850 -> M1850_Transferring_Actual__c
+    M1860 -> M1860_Ambulation_Locomotion_Actual__c
+    M1870 -> M1870_Feeding_Actual__c
+    M2020 -> M2020_Oral_Medications_Actual__c
+    J0530 -> J0530_Pain_Interference_with_Day_to_Da__c
+
+    GG0130 B -> GG0130_B_Oral_Hygiene__c
+    GG0130 C -> GG0130_C_Toileting_Hygiene__c
+    GG0130 E -> GG0130_E_Shower_bathe_self__c
+    GG0130 F -> GG0130_F_Upper_body_dressing__c
+    GG0130 G -> GG0130_G_Lower_body_dressing__c
+    GG0130 H -> GG0130_H_Putting_on_taking_off_footwear__c
+    GG0170 A -> GG0170_A_Roll_left_and_right__c
+    GG0170 B -> GG0170_B_Sit_to_lying__c
+    GG0170 C -> GG0170_C_Lying_to_sitting_on_side_of_bed__c
+    GG0170 D -> GG0170_D_Sit_to_stand__c
+    GG0170 E -> GG0170_E_Chair_bed_to_chair_transfer__c
+    GG0170 F -> GG0170_F_Toilet_transfer__c
+    GG0170 I -> GG0170_I_Walk_10_feet__c
+    GG0170 J -> GG0170_J_Walk_50_feet_with_two_turns__c
+    GG0170 K -> GG0170_K_Walk_150_feet__c
+    GG0170 L -> GG0170_L_Walking_10_feet_on_uneven_surf__c
+    GG0170 M -> GG0170_M_1_step_curb__c
+    GG0170 N -> GG0170_N_4_steps__c
+    GG0170 O -> GG0170_O_12_steps__c
+    GG0170 R -> GG0170_R_Wheel_50_feet_with_two_turns__c
+    GG0170 S -> GG0170_S_Wheel_150_feet__c
+
+    FINAL OUTPUT FORMAT (STRICT)
+    Return ONLY valid JSON.
+    Return a SINGLE flat JSON object.
+    Keys MUST be the specific keys listed above.
+    Values MUST be strings.
+    Use comma-separated values for multi-select items.
+    If an item is not found or not marked, return "N/A".
+    Do NOT include markdown, backticks, explanations, or extra text.
+    Do NOT include OASIS codes in the output keys.
+    Do NOT add or remove keys.
+
+    PICKLIST NORMALIZATION RULES (MANDATORY)
+    Document wording and layouts may vary. Use semantic meaning, not exact text.
+    Normalize selections to the VALID Salesforce picklist values below.
+    Return ONLY the exact picklist label.
+
+    Activities Permitted — VALID VALUES
+    Complete Bed Rest, Up as Tolerated, Excercise Prescribed, Independent at Home, Cane, Walker, Best Rest BRP, Transfer Bed-Chair, Partial Weight Bearing, Crutches, Wheelchair, Other, Needs assist with ADLs, Transfer Assistance, Fall Precautions, Slow Position Changes, Wound Care, Abdom. Surgery Precautions, Requires Supervision
+
+    DME — VALID VALUES
+    Bedside Commode, Cane, Elevated Toilet Seat, Grab Bars, Hospital Bed, Nebulizer, Oxygen, Tub/Shower Bench, Walker, Wheelchair, Other, Bed Overlay, Brace/Orthotics, Crutches, Hoyer Lift, Respiratory Equipment, Slider Board, Trapeze, No-DME, CPAP Machine, Diabetic Supplies, Vital Sign Equipment, Removable Shower Head, Scooter, Wound Care Supplies, Alcohol/Hand Sanitizer, Lab Supplies, PPE
+
+    OUTPUT ENFORCEMENT
+    Output ONLY valid picklist labels.
+    Multiple values must be comma-separated.
+    If nothing applies, return "N/A".
+            `;
+            
+            const parts = [{ text: prompt }];
+            fileDataArray.forEach(f => {
+                parts.push({
+                    inlineData: { mimeType: f.mimeType, data: f.base64 }
+                });
+            });
+
+            const response = await fetch(`${GEMINI_VISION_ENDPOINT}?key=${GEMINI_API_KEY}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ contents: [{ parts: parts }] })
+            });
+
+            if (!response.ok) {
+                 console.warn("Oasis Extraction failed");
+                 return "{}";
+            }
             const data = await response.json();
             return data.candidates[0].content.parts[0].text;
         }
@@ -2108,4 +2329,3 @@ INPUT DIAGNOSES TO AUDIT:
 </body>
 
 </html>
-
