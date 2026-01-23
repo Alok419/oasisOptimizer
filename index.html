@@ -1836,7 +1836,7 @@ If such a document EXISTS:
 ADDITIONALLY, BASED ON THE PATIENT'S CLINICAL PRESENTATION, INFER AND SUGGEST THE MOST LIKELY OASIS FUNCTIONAL ABILITY M-ITEMS:
 Use your medical reasoning to analyze the patient's mobility, self-care ability, and functional limitations described in the documents (H&P, PT/OT notes, etc.).
 
-For each of the following, SUGGEST the most appropriate value or ability level:
+For each of the following, SUGGEST the most appropriate value or ability level with the reason of that value.
 - M1800: Grooming
 - M1810: Current Ability to Dress Upper Body
 - M1820: Current Ability to Dress Lower Body
@@ -1855,7 +1855,9 @@ Example Format:
 
 Functional Status (OASIS M-Items - AI Suggested):
 - M1800: Grooming - [Suggested Value] (Rationale: e.g. "Patient has right arm paralysis...")
+reason 
 - M1860: Ambulation - [Suggested Value] (Rationale: e.g. "PT note mentions steady gait with cane...")
+reason
 ...
 -----------------------------------------------------------
 
@@ -2499,5 +2501,6 @@ INPUT DIAGNOSES TO AUDIT:
 </body>
 
 </html>
+
 
 
