@@ -1234,6 +1234,7 @@
         let VECTOR_STORE_ID = null;
         let CACHED_AI_TIME = 0;
         let SAVED_CHART_ID = null;
+        let currentSessionLogs = [];
 
         // Array to store actual File objects
         let selectedFiles = [];
@@ -1420,6 +1421,7 @@
            ========================================================= */
 
         async function startAnalysis() {
+            currentSessionLogs = [];
             const analyzeBtn = document.getElementById("analyzeBtn");
             const resultArea = document.getElementById("resultArea");
             const jsonOutput = document.getElementById("jsonOutput");
@@ -1683,7 +1685,8 @@
                     CACHED_AI_TIME,
                     patientName,
                     visitDate,
-                    oasisOutput.value
+                    oasisOutput.value,
+                    currentSessionLogs
                 );
 
                 SAVED_CHART_ID = chartId; // Store for View Report
@@ -1721,7 +1724,7 @@
         }
 
         // 1. Send Data to Custom Apex REST API
-        async function sendToSalesforce(rawJson, f2fSummary, ptOtJson, aiTimeSeconds, patientName, visitDate, oasisJson) {
+        async function sendToSalesforce(rawJson, f2fSummary, ptOtJson, aiTimeSeconds, patientName, visitDate, oasisJson,aiLogs) {
             const endpoint = `${SF_BASE_URL}/services/apexrest/non-oasis/ai-result`;
             const response = await fetch(endpoint, {
                 method: "POST",
@@ -1734,7 +1737,8 @@
                     aiTimeSeconds: aiTimeSeconds,
                     patientName: patientName,
                     visitDate: visitDate,
-                    oasisJson: oasisJson
+                    oasisJson: oasisJson,
+                    aiLogs: aiLogs
                 })
             });
             if (!response.ok) throw new Error(await response.text());
@@ -1882,6 +1886,16 @@ Summarize ONLY what is written. Never fabricate or assume.
                 return "No F2F document found.";
             }
             const data = await response.json();
+            if (data.usageMetadata) {
+    currentSessionLogs.push({
+        toolType: "Coding",
+        description: "F2F Summary & Functional Inference",
+        model: data.modelVersion,
+        responseId: data.responseId,
+        promptTokens: data.usageMetadata.promptTokenCount,
+        totalTokens: data.usageMetadata.totalTokenCount
+    });
+}
             let text = data.candidates[0].content.parts[0].text;
             return text.replace(/\*/g, "").trim();
         }
@@ -1968,6 +1982,16 @@ Every output must directly come from the uploaded files.
 
             if (!response.ok) throw new Error("Vision Step Failed");
             const data = await response.json();
+            if (data.usageMetadata) {
+    currentSessionLogs.push({
+        toolType: "Coding",
+        description: "Raw Diagnosis Identification",
+        model: data.modelVersion,
+        responseId: data.responseId,
+        promptTokens: data.usageMetadata.promptTokenCount,
+        totalTokens: data.usageMetadata.totalTokenCount
+    });
+}
             return data.candidates[0].content.parts[0].text;
         }
 
@@ -2174,6 +2198,16 @@ Every output must directly come from the uploaded files.
                     return "{}";
                 }
                 const data = await response.json();
+                if (data.usageMetadata) {
+    currentSessionLogs.push({
+        toolType: "Oasis",
+        description: "OASIS-E1 Data Extraction",
+        model: data.modelVersion,
+        responseId: data.responseId,
+        promptTokens: data.usageMetadata.promptTokenCount,
+        totalTokens: data.usageMetadata.totalTokenCount
+    });
+}
                 console.log("✅ Oasis Extraction Data Received");
                 return data.candidates[0].content.parts[0].text;
             } catch (error) {
@@ -2326,6 +2360,16 @@ Every output must directly come from the uploaded files.
                 return "{}";
             }
             const data = await response.json();
+            if (data.usageMetadata) {
+    currentSessionLogs.push({
+        toolType: "Coding",
+        description: "PT/OT Functional Evaluation",
+        model: data.modelVersion,
+        responseId: data.responseId,
+        promptTokens: data.usageMetadata.promptTokenCount,
+        totalTokens: data.usageMetadata.totalTokenCount
+    });
+}
             return data.candidates[0].content.parts[0].text;
         }
 
@@ -2458,6 +2502,16 @@ INPUT DIAGNOSES TO AUDIT:
 
             if (!response.ok) throw new Error("Audit Step Failed: " + response.statusText);
             const data = await response.json();
+            if (data.usageMetadata) {
+    currentSessionLogs.push({
+        toolType: "Coding",
+        description: "ICD-10 Compliance Audit (RAG)",
+        model: data.modelVersion,
+        responseId: data.responseId,
+        promptTokens: data.usageMetadata.promptTokenCount,
+        totalTokens: data.usageMetadata.totalTokenCount
+    });
+}
             console.log("🔍 API Response:", data);
 
             if (!data.candidates || data.candidates.length === 0) {
